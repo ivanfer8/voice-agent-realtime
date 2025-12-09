@@ -34,7 +34,7 @@ app.get('/api/session', async (req, res) => {
         console.log('🔄 Solicitando token efímero a OpenAI...');
 
         // Configuración mínima para el endpoint de client_secrets (versión GA)
-        // Los parámetros como voice y turn_detection se configuran después
+        // Los parámetros como voice y turn_detection NO van aquí (error 400)
         const requestBody = {
             expires_after: {
                 anchor: 'created_at',
@@ -43,7 +43,12 @@ app.get('/api/session', async (req, res) => {
             session: {
                 type: 'realtime',
                 model: 'gpt-realtime-mini',
-                instructions: 'Eres un asistente de voz útil y amigable. Responde de manera concisa y natural en español.'
+                // Instrucciones mejoradas para respuestas más naturales
+                instructions: 'Eres un asistente de voz útil y amigable. ' +
+                             'Habla de manera natural y conversacional, como si fueras una persona real. ' +
+                             'Usa expresiones coloquiales cuando sea apropiado y un tono cercano y empático. ' +
+                             'No uses frases robóticas ni formales en exceso. ' +
+                             'Responde de manera concisa pero expresiva en español.'
             }
         };
 

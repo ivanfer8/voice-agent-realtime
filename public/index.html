@@ -353,7 +353,29 @@
                 this.btnConnect.disabled = true;
                 this.btnDisconnect.disabled = false;
                 
-                // La configuración ya viene del client_secret, no necesitamos session.update
+                // Configurar voz y parámetros DESPUÉS de conectar
+                // Esto evita el error 400 del client_secret
+                const sessionConfig = {
+                    type: 'session.update',
+                    session: {
+                        voice: 'shimmer',  // Voz más natural (cambiar a: echo, ash, ballad, coral, sage, verse)
+                        turn_detection: {
+                            type: 'server_vad',
+                            threshold: 0.5,           // Sensibilidad (0.0-1.0, default 0.5)
+                            prefix_padding_ms: 300,    // Audio previo a capturar
+                            silence_duration_ms: 500,  // Milisegundos de silencio para terminar
+                            create_response: true      // Auto-responder cuando detecta silencio
+                        },
+                        input_audio_format: 'pcm16',
+                        output_audio_format: 'pcm16',
+                        temperature: 0.8,  // Creatividad: 0.6 = conservador, 1.0 = creativo
+                        max_output_tokens: 1024  // Límite de respuesta
+                    }
+                };
+                
+                console.log('📤 Configurando sesión:', sessionConfig);
+                this.sendEvent(sessionConfig);
+                
                 this.addMessage('system', '✓ Conectado. El micrófono se está activando...');
                 
                 // Iniciar grabación automáticamente en modo manos libres
