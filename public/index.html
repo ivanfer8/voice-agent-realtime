@@ -313,7 +313,8 @@
                     this.updateStatus('Conectando...', 'connecting');
                     
                     // Obtener token efímero del servidor
-                    const response = await fetch('http://localhost:3000/api/session');
+                    // Usar URL relativa para que funcione en desarrollo y producción
+                    const response = await fetch('/api/session');
                     if (!response.ok) {
                         throw new Error('Error al obtener sesión');
                     }
