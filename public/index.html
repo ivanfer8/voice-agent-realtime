@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenAI Realtime Voice Assistant</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 2em;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 0.9em;
+        }
+
+        .status {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .status.disconnected {
+            background: #fee;
+            color: #c33;
+        }
+
+        .status.connecting {
+            background: #ffc;
+            color: #880;
+        }
+
+        .status.connected {
+            background: #efe;
+            color: #3c3;
+        }
+
+        .status.listening {
+            background: #e3f2fd;
+            color: #1976d2;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            padding: 15px 30px;
+            font-size: 16px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-connect {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-disconnect {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .btn-speak {
+            background: #3498db;
+            color: white;
+        }
+
+        .btn-stop {
+            background: #e67e22;
+            color: white;
+        }
+
+        .conversation {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+        }
+
+        .message {
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.user {
+            background: #e3f2fd;
+            text-align: right;
+        }
+
+        .message.assistant {
+            background: #f3e5f5;
+        }
+
+        .message.system {
+            background: #fff3e0;
+            font-size: 0.9em;
+            color: #666;
+            text-align: center;
+        }
+
+        .message strong {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 0.85em;
+            opacity: 0.7;
+        }
+
+        .visualizer {
+            height: 80px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .wave {
+            display: flex;
+            gap: 3px;
+            align-items: center;
+        }
+
+        .bar {
+            width: 4px;
+            background: #667eea;
+            border-radius: 2px;
+            transition: height 0.1s ease;
+        }
+
+        .info {
+            background: #e8f4fd;
+            border-left: 4px solid #2196f3;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+            font-size: 0.9em;
+            color: #555;
+        }
+
+        .info strong {
+            color: #2196f3;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
+            h1 {
+                font-size: 1.5em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎙️ Voice Assistant</h1>
+        <p class="subtitle">Powered by OpenAI Realtime API (gpt-realtime-mini)</p>
+
+        <div id="status" class="status disconnected">
+            Desconectado
+        </div>
+
+        <div class="visualizer" id="visualizer">
+            <div class="wave" id="wave"></div>
+        </div>
+
+        <div class="controls">
+            <button id="btnConnect" class="btn-connect">Conectar</button>
+            <button id="btnDisconnect" class="btn-disconnect" disabled>Desconectar</button>
+        </div>
+
+        <div class="conversation" id="conversation"></div>
+
+        <div class="info">
+            <strong>Instrucciones:</strong><br>
+            1. Click en "Conectar" para iniciar la sesión<br>
+            2. El micrófono se activará automáticamente<br>
+            3. Simplemente habla - el sistema detectará tu voz<br>
+            4. El asistente responderá cuando termines de hablar
+        </div>
+    </div>
+
+    <script>
+        class RealtimeVoiceClient {
+            constructor() {
+                this.ws = null;
+                this.audioContext = null;
+                this.mediaStream = null;
+                this.processor = null;
+                this.isRecording = false;
+                this.recordingStartTime = 0;
+                this.audioQueue = [];
+                this.isPlaying = false;
+                this.assistantSpeaking = false;  // Flag para saber si el asistente está hablando
+                
+                // Referencias al DOM
+                this.statusEl = document.getElementById('status');
+                this.conversationEl = document.getElementById('conversation');
+                this.btnConnect = document.getElementById('btnConnect');
+                this.btnDisconnect = document.getElementById('btnDisconnect');
+                this.visualizerEl = document.getElementById('visualizer');
+                this.waveEl = document.getElementById('wave');
+                
+                this.initEventListeners();
+                this.initVisualizer();
+            }
+
+            initEventListeners() {
+                this.btnConnect.addEventListener('click', () => this.connect());
+                this.btnDisconnect.addEventListener('click', () => this.disconnect());
+            }
+
+            initVisualizer() {
+                // Crear barras para el visualizador
+                for (let i = 0; i < 20; i++) {
+                    const bar = document.createElement('div');
+                    bar.className = 'bar';
+                    bar.style.height = '10px';
+                    this.waveEl.appendChild(bar);
+                }
+            }
+
+            updateVisualizer(isActive) {
+                const bars = this.waveEl.querySelectorAll('.bar');
+                bars.forEach((bar, i) => {
+                    if (isActive) {
+                        const height = Math.random() * 60 + 10;
+                        bar.style.height = `${height}px`;
+                    } else {
+                        bar.style.height = '10px';
+                    }
+                });
+            }
+
+            async connect() {
+                try {
+                    this.updateStatus('Conectando...', 'connecting');
+                    
+                    // Obtener token efímero del servidor
+                    const response = await fetch('http://localhost:3000/api/session');
+                    if (!response.ok) {
+                        throw new Error('Error al obtener sesión');
+                    }
+                    
+                    const sessionData = await response.json();
+                    console.log('Sesión recibida:', sessionData);
+                    
+                    // El token está en client_secret.value
+                    const token = sessionData.client_secret.value;
+                    
+                    console.log('Token obtenido:', token);
+                    
+                    // Conectar al WebSocket de OpenAI (versión GA)
+                    // El modelo ya está configurado en el client_secret
+                    const wsUrl = `wss://api.openai.com/v1/realtime`;
+                    
+                    this.ws = new WebSocket(wsUrl, [
+                        'realtime',
+                        `openai-insecure-api-key.${token}`
+                    ]);
+                    
+                    this.ws.onopen = () => this.onWebSocketOpen();
+                    this.ws.onmessage = (event) => this.onWebSocketMessage(event);
+                    this.ws.onerror = (error) => this.onWebSocketError(error);
+                    this.ws.onclose = () => this.onWebSocketClose();
+                    
+                } catch (error) {
+                    console.error('Error al conectar:', error);
+                    this.updateStatus('Error de conexión', 'disconnected');
+                    this.addMessage('system', 'Error: ' + error.message);
+                }
+            }
+
+            onWebSocketOpen() {
+                console.log('WebSocket conectado');
+                this.updateStatus('Conectado', 'connected');
+                this.btnConnect.disabled = true;
+                this.btnDisconnect.disabled = false;
+                
+                // La configuración ya viene del client_secret, no necesitamos session.update
+                this.addMessage('system', '✓ Conectado. El micrófono se está activando...');
+                
+                // Iniciar grabación automáticamente en modo manos libres
+                this.startContinuousRecording();
+            }
+
+            onWebSocketMessage(event) {
+                const message = JSON.parse(event.data);
+                console.log('Evento recibido:', message.type, message);
+                
+                switch (message.type) {
+                    case 'session.created':
+                    case 'session.updated':
+                        console.log('Sesión configurada:', message.session);
+                        break;
+                        
+                    case 'conversation.item.created':
+                        console.log('Item creado en conversación');
+                        break;
+                        
+                    case 'response.output_audio_transcript.delta':
+                        // Transcripción parcial del asistente
+                        console.log('Transcripción delta:', message.delta);
+                        break;
+                        
+                    case 'response.output_audio_transcript.done':
+                        // Transcripción completa del asistente
+                        console.log('Transcripción completa:', message.transcript);
+                        this.addMessage('assistant', message.transcript);
+                        break;
+                        
+                    case 'response.output_audio.delta':
+                        // Audio del asistente - marcar que está hablando
+                        this.assistantSpeaking = true;
+                        if (message.delta) {
+                            this.playAudioChunk(message.delta);
+                        }
+                        break;
+                        
+                    case 'response.output_audio.done':
+                        console.log('Audio de respuesta completado');
+                        // El asistente terminó de enviar audio chunks
+                        break;
+                        
+                    case 'input_audio_buffer.speech_started':
+                        // Usuario empezó a hablar - interrumpir asistente
+                        this.updateStatus('🎤 Escuchando tu voz...', 'listening');
+                        console.log('Voz detectada por VAD');
+                        // Limpiar cola de audio pendiente del asistente
+                        this.audioQueue = [];
+                        this.isPlaying = false;
+                        this.assistantSpeaking = false;
+                        break;
+                        
+                    case 'input_audio_buffer.speech_stopped':
+                        this.updateStatus('⏳ Procesando...', 'connecting');
+                        console.log('Fin de voz detectado por VAD');
+                        break;
+                        
+                    case 'response.done':
+                        // Respuesta completada - volver a escuchar
+                        console.log('Respuesta completada');
+                        this.assistantSpeaking = false;
+                        this.updateStatus('🎤 Micrófono activo - Habla normalmente', 'listening');
+                        break;
+                        
+                    case 'error':
+                        console.error('Error de la API:', message.error);
+                        // Solo mostrar errores importantes al usuario
+                        if (message.error.code !== 'input_audio_buffer_commit_empty') {
+                            this.addMessage('system', 'Error: ' + message.error.message);
+                        }
+                        break;
+                }
+            }
+
+            onWebSocketError(error) {
+                console.error('Error de WebSocket:', error);
+                this.updateStatus('Error de conexión', 'disconnected');
+            }
+
+            onWebSocketClose() {
+                console.log('WebSocket cerrado');
+                this.updateStatus('Desconectado', 'disconnected');
+                this.btnConnect.disabled = false;
+                this.btnDisconnect.disabled = true;
+                
+                // Detener grabación continua
+                this.stopContinuousRecording();
+            }
+
+            disconnect() {
+                // Detener grabación continua
+                this.stopContinuousRecording();
+                
+                if (this.ws) {
+                    this.ws.close();
+                    this.ws = null;
+                }
+                if (this.audioContext) {
+                    this.audioContext.close();
+                    this.audioContext = null;
+                }
+            }
+
+            async startContinuousRecording() {
+                if (this.isRecording) return;
+                
+                try {
+                    this.updateStatus('Micrófono activo - Habla normalmente', 'listening');
+                    this.updateVisualizer(true);
+                    
+                    // Inicializar AudioContext si no existe
+                    if (!this.audioContext) {
+                        this.audioContext = new (window.AudioContext || window.webkitAudioContext)({
+                            sampleRate: 24000
+                        });
+                    }
+                    
+                    // Obtener micrófono con cancelación de eco
+                    this.mediaStream = await navigator.mediaDevices.getUserMedia({ 
+                        audio: {
+                            channelCount: 1,
+                            sampleRate: 24000,
+                            echoCancellation: true,  // Importante para evitar feedback
+                            noiseSuppression: true,
+                            autoGainControl: true
+                        }
+                    });
+                    
+                    const source = this.audioContext.createMediaStreamSource(this.mediaStream);
+                    
+                    // Crear procesador de audio
+                    this.processor = this.audioContext.createScriptProcessor(4096, 1, 1);
+                    this.processor.onaudioprocess = (e) => {
+                        if (!this.isRecording || this.assistantSpeaking) return;  // No enviar si el asistente habla
+                        
+                        const inputData = e.inputBuffer.getChannelData(0);
+                        
+                        // Convertir Float32Array a PCM16
+                        const pcm16 = this.float32ToPCM16(inputData);
+                        
+                        // Enviar al servidor como base64
+                        const base64Audio = this.arrayBufferToBase64(pcm16.buffer);
+                        
+                        // En modo continuo, siempre enviamos el audio
+                        // El VAD del servidor detectará cuándo hablas
+                        this.sendEvent({
+                            type: 'input_audio_buffer.append',
+                            audio: base64Audio
+                        });
+                    };
+                    
+                    source.connect(this.processor);
+                    this.processor.connect(this.audioContext.destination);
+                    
+                    this.isRecording = true;
+                    this.assistantSpeaking = false;
+                    this.addMessage('system', '🎤 Micrófono activo. Simplemente habla y el asistente te responderá.');
+                    
+                } catch (error) {
+                    console.error('Error al iniciar grabación:', error);
+                    this.addMessage('system', 'Error al acceder al micrófono: ' + error.message);
+                    this.updateStatus('Conectado', 'connected');
+                }
+            }
+
+            stopContinuousRecording() {
+                if (!this.isRecording) return;
+                
+                this.isRecording = false;
+                this.updateVisualizer(false);
+                
+                if (this.processor) {
+                    this.processor.disconnect();
+                    this.processor = null;
+                }
+                
+                if (this.mediaStream) {
+                    this.mediaStream.getTracks().forEach(track => track.stop());
+                    this.mediaStream = null;
+                }
+            }
+
+            async playAudioChunk(base64Audio) {
+                try {
+                    // Decodificar base64 a ArrayBuffer
+                    const binaryString = atob(base64Audio);
+                    const bytes = new Uint8Array(binaryString.length);
+                    for (let i = 0; i < binaryString.length; i++) {
+                        bytes[i] = binaryString.charCodeAt(i);
+                    }
+                    
+                    // Convertir PCM16 a Float32
+                    const pcm16 = new Int16Array(bytes.buffer);
+                    const float32 = new Float32Array(pcm16.length);
+                    for (let i = 0; i < pcm16.length; i++) {
+                        float32[i] = pcm16[i] / 32768.0;
+                    }
+                    
+                    // Crear AudioContext si no existe
+                    // NOTA: Algunos navegadores ignoran sampleRate y usan el del hardware
+                    if (!this.audioContext) {
+                        this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                        console.log('AudioContext creado con sample rate:', this.audioContext.sampleRate);
+                    }
+                    
+                    const targetSampleRate = 24000;  // Sample rate de OpenAI
+                    const actualSampleRate = this.audioContext.sampleRate;
+                    
+                    let audioBuffer;
+                    
+                    if (actualSampleRate === targetSampleRate) {
+                        // Sample rate coincide - reproducción directa
+                        audioBuffer = this.audioContext.createBuffer(1, float32.length, targetSampleRate);
+                        audioBuffer.getChannelData(0).set(float32);
+                    } else {
+                        // Sample rate diferente - necesitamos resamplear
+                        console.log(`Resampling de ${targetSampleRate}Hz a ${actualSampleRate}Hz`);
+                        
+                        // Calcular nueva longitud
+                        const ratio = actualSampleRate / targetSampleRate;
+                        const newLength = Math.floor(float32.length * ratio);
+                        
+                        // Crear buffer con el sample rate correcto
+                        audioBuffer = this.audioContext.createBuffer(1, newLength, actualSampleRate);
+                        const channelData = audioBuffer.getChannelData(0);
+                        
+                        // Resampleo simple (interpolación lineal)
+                        for (let i = 0; i < newLength; i++) {
+                            const srcIndex = i / ratio;
+                            const srcIndexFloor = Math.floor(srcIndex);
+                            const srcIndexCeil = Math.min(srcIndexFloor + 1, float32.length - 1);
+                            const fraction = srcIndex - srcIndexFloor;
+                            
+                            // Interpolación lineal
+                            channelData[i] = float32[srcIndexFloor] * (1 - fraction) + 
+                                            float32[srcIndexCeil] * fraction;
+                        }
+                    }
+                    
+                    // Agregar a la cola de reproducción
+                    this.audioQueue.push(audioBuffer);
+                    
+                    // Si no hay reproducción en curso, iniciarla
+                    if (!this.isPlaying) {
+                        this.playNextInQueue();
+                    }
+                    
+                } catch (error) {
+                    console.error('Error al reproducir audio:', error);
+                }
+            }
+
+            playNextInQueue() {
+                if (this.audioQueue.length === 0) {
+                    this.isPlaying = false;
+                    console.log('Cola de audio vacía, reproducción terminada');
+                    return;
+                }
+                
+                this.isPlaying = true;
+                
+                // Obtener el siguiente buffer de la cola
+                const audioBuffer = this.audioQueue.shift();
+                console.log(`Reproduciendo chunk de ${audioBuffer.duration.toFixed(3)}s (${this.audioQueue.length} en cola)`);
+                
+                // Crear fuente y reproducir
+                const source = this.audioContext.createBufferSource();
+                source.buffer = audioBuffer;
+                source.connect(this.audioContext.destination);
+                
+                // Cuando termine este chunk, reproducir el siguiente
+                source.onended = () => {
+                    // Pequeño delay para evitar clics entre chunks
+                    setTimeout(() => {
+                        this.playNextInQueue();
+                    }, 10);
+                };
+                
+                source.start();
+            }
+
+            float32ToPCM16(float32Array) {
+                const pcm16 = new Int16Array(float32Array.length);
+                for (let i = 0; i < float32Array.length; i++) {
+                    const s = Math.max(-1, Math.min(1, float32Array[i]));
+                    pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+                }
+                return pcm16;
+            }
+
+            arrayBufferToBase64(buffer) {
+                const bytes = new Uint8Array(buffer);
+                let binary = '';
+                for (let i = 0; i < bytes.byteLength; i++) {
+                    binary += String.fromCharCode(bytes[i]);
+                }
+                return btoa(binary);
+            }
+
+            sendEvent(event) {
+                if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                    this.ws.send(JSON.stringify(event));
+                }
+            }
+
+            updateStatus(text, className) {
+                this.statusEl.textContent = text;
+                this.statusEl.className = 'status ' + className;
+            }
+
+            addMessage(role, text) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'message ' + role;
+                
+                if (role !== 'system') {
+                    const label = document.createElement('strong');
+                    label.textContent = role === 'user' ? 'Tú:' : 'Asistente:';
+                    messageDiv.appendChild(label);
+                }
+                
+                const content = document.createElement('div');
+                content.textContent = text;
+                messageDiv.appendChild(content);
+                
+                this.conversationEl.appendChild(messageDiv);
+                this.conversationEl.scrollTop = this.conversationEl.scrollHeight;
+            }
+        }
+
+        // Inicializar cuando el DOM esté listo
+        document.addEventListener('DOMContentLoaded', () => {
+            window.voiceClient = new RealtimeVoiceClient();
+        });
+    </script>
+</body>
+</html>

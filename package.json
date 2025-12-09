@@ -1,16 +1,30 @@
 {
-  "name": "voice-agent-realtime",
+  "name": "openai-realtime-voice-assistant",
   "version": "1.0.0",
-  "description": "",
-  "repository": {
-    "type": "git",
-    "url": "voice-agent-realtime"
-  },
-  "license": "ISC",
-  "author": "",
-  "type": "commonjs",
-  "main": "index.js",
+  "description": "Sistema de asistente de voz en tiempo real usando OpenAI Realtime API con gpt-realtime-mini",
+  "type": "module",
+  "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "example": "node client-node.js"
+  },
+  "keywords": [
+    "openai",
+    "realtime-api",
+    "voice-assistant",
+    "websocket",
+    "speech-to-speech"
+  ],
+  "author": "Ivan Fernandez",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "ws": "^8.14.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
