@@ -1,28 +1,31 @@
 {
-  "name": "openai-realtime-voice-assistant",
-  "version": "1.0.0",
-  "description": "Sistema de asistente de voz en tiempo real usando OpenAI Realtime API con gpt-realtime-mini",
-  "type": "module",
+  "name": "openai-elevenlabs-realtime",
+  "version": "2.0.0",
+  "description": "Servidor de voz en tiempo real con OpenAI Realtime API + ElevenLabs TTS",
   "main": "server.js",
+  "type": "module",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js",
-    "example": "node client-node.js"
+    "dev": "nodemon server.js"
   },
   "keywords": [
     "openai",
-    "realtime-api",
-    "voice-assistant",
-    "websocket",
-    "speech-to-speech"
+    "elevenlabs",
+    "realtime",
+    "voice",
+    "tts",
+    "websocket"
   ],
-  "author": "Ivan Fernandez",
+  "author": "Zener",
   "license": "MIT",
   "dependencies": {
     "express": "^4.18.2",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "ws": "^8.14.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
   },
   "engines": {
     "node": ">=18.0.0"
